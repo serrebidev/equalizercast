@@ -1,0 +1,24 @@
+[Unit]
+Description=EqualizerCast web controls
+After=docker.service network-online.target
+Requires=docker.service
+
+[Service]
+Type=simple
+User=equalizercast
+Group=equalizercast
+SupplementaryGroups=docker
+WorkingDirectory=/opt/equalizercast
+Environment=LIQUIDSOAP_API_KEY_FILE=/etc/equalizercast/liquidsoap-api-key
+ExecStart=/usr/bin/python3 /opt/equalizercast/app.py
+Restart=on-failure
+RestartSec=3
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/lib/equalizercast
+
+[Install]
+WantedBy=multi-user.target
+

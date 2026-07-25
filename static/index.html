@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>EqualizerCast</title>
+  <link rel="stylesheet" href="/app.css">
+</head>
+<body>
+<main>
+  <h1>EqualizerCast</h1>
+  <p>Changes are applied to the stream immediately and saved automatically.</p>
+  <p id="status" role="status" aria-live="polite">Connecting…</p>
+
+  <section class="danger" aria-labelledby="tone-heading">
+    <h2 id="tone-heading">On-air test tone</h2>
+    <p><strong>Warning:</strong> this overlays a sine tone on the music across every public mount. It stops automatically after 30 seconds.</p>
+    <div class="tone-grid">
+      <label for="tone-frequency">Frequency in Hz</label>
+      <input id="tone-frequency" type="number" min="20" max="20000" step="1" value="1000">
+      <label for="tone-frequency-range">Frequency slider</label>
+      <input id="tone-frequency-range" type="range" min="0" max="1000" step="1" value="566">
+      <label for="tone-level">Input level in dBFS</label>
+      <input id="tone-level" type="number" min="-60" max="-6" step="0.5" value="-18">
+    </div>
+    <button id="tone-toggle" class="tone-button" type="button">Start on-air tone</button>
+    <p id="tone-state" aria-live="assertive">Tone is off.</p>
+  </section>
+
+  <section aria-labelledby="output-heading">
+    <h2 id="output-heading">Output</h2>
+    <div id="output-control"></div>
+  </section>
+
+  <section aria-labelledby="eq-heading">
+    <h2 id="eq-heading">Equalizer bands</h2>
+    <p>Each band ranges from −6 to +6 dB and updates while you move it.</p>
+    <div id="bands" class="bands"></div>
+  </section>
+
+  <button id="reset" type="button">Reset to installed curve</button>
+</main>
+<script src="/app.js"></script>
+</body>
+</html>
+
