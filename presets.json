@@ -13,6 +13,37 @@
     }
   ],
   "presets": [
+    {
+      "name": "SerrebiRadio",
+      "category": "Station",
+      "description": "Exact restore point for the saved SerrebiRadio curve and output level.",
+      "bands": [
+        {"frequency": 32, "gain": 2.5, "q": 0.85},
+        {"frequency": 40, "gain": 2.5, "q": 0.95},
+        {"frequency": 50, "gain": 2.5, "q": 1.0},
+        {"frequency": 64, "gain": 2.3, "q": 1.0},
+        {"frequency": 80, "gain": 1.8, "q": 0.9},
+        {"frequency": 95, "gain": 1.41, "q": 1.05},
+        {"frequency": 128, "gain": 1.74, "q": 0.95},
+        {"frequency": 190, "gain": 0.97, "q": 1.0},
+        {"frequency": 330, "gain": -0.14, "q": 0.9},
+        {"frequency": 650, "gain": -0.11, "q": 0.85},
+        {"frequency": 1050, "gain": 0.31, "q": 0.95},
+        {"frequency": 1800, "gain": 1.06, "q": 0.85},
+        {"frequency": 2200, "gain": 1.49, "q": 0.95},
+        {"frequency": 2600, "gain": 1.83, "q": 0.9},
+        {"frequency": 3400, "gain": 2.37, "q": 0.9},
+        {"frequency": 4300, "gain": 2.43, "q": 0.85},
+        {"frequency": 5400, "gain": 2.45, "q": 0.85},
+        {"frequency": 6800, "gain": 2.46, "q": 0.9},
+        {"frequency": 7700, "gain": 2.46, "q": 1.1},
+        {"frequency": 8200, "gain": 2.23, "q": 1.2},
+        {"frequency": 10000, "gain": 2.19, "q": 1.2},
+        {"frequency": 12200, "gain": 2.25, "q": 1.25},
+        {"frequency": 15000, "gain": 2.3, "q": 1.1}
+      ],
+      "output_gain": 0.613
+    },
     {"name":"Flat","category":"Reference","description":"No tonal change.","gains":[0,0,0,0,0,0,0,0,0,0]},
     {"name":"Gentle Smile","category":"Reference","description":"Subtle bass and treble lift.","gains":[1.5,1.2,0.7,0,-0.5,-0.5,0,0.7,1.2,1.5]},
     {"name":"Gentle Warmth","category":"Reference","description":"A mild, relaxed low-frequency tilt.","gains":[1.8,1.6,1.2,0.8,0.4,0,-0.3,-0.6,-0.8,-1]},
