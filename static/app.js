@@ -209,16 +209,23 @@ document.querySelector('#apply-preset').addEventListener('click', async () => {
   const preset = selectedPreset();
   if (!preset) return;
   const keepLayout = document.querySelector('#keep-layout').checked;
-  const frequencies = keepLayout ? bands.map(band => band.frequency) : presetData.frequencies;
-  const next = frequencies.map((frequency, index) => ({
-    frequency,
-    gain: Number((keepLayout
-      ? interpolate(presetData.frequencies, preset.gains, frequency)
-      : preset.gains[index]).toFixed(2)),
-    q: keepLayout ? bands[index].q : 1
-  }));
+  const next = preset.bands
+    ? preset.bands.map(band => ({...band}))
+    : (keepLayout ? bands.map(band => band.frequency) : presetData.frequencies).map((frequency, index) => ({
+      frequency,
+      gain: Number((keepLayout
+        ? interpolate(presetData.frequencies, preset.gains, frequency)
+        : preset.gains[index]).toFixed(2)),
+      q: keepLayout ? bands[index].q : 1
+    }));
   try {
     await replaceBands(next, `${preset.name} preset applied. Live and saved.`);
+    if (preset.output_gain !== undefined) {
+      await post('/api/set', {name: 'eq.output.gain', value: preset.output_gain});
+      values['eq.output.gain'] = preset.output_gain;
+      for (const input of outputNode.querySelectorAll('input')) input.value = preset.output_gain;
+    }
+    announce(`${preset.name} preset applied. Live and saved.`);
   } catch (error) {
     announce(`Could not apply preset: ${error.message}`, true);
   }

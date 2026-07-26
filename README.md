@@ -66,6 +66,9 @@ preset either to the current layout or to the standard 10-band layout.
 provenance. The curves were newly authored within the app's conservative ±6 dB
 range; the referenced Audacious/Winamp collection and AWA guide were used for
 established names and intended tonal profiles, not copied gain data.
+Presets may also contain a complete `bands` layout and an optional `output_gain`;
+these exact-layout presets restore band count, frequencies, Q, gains, and output
+instead of interpolating onto the current layout.
 
 Changing from an earlier EqualizerCast release requires regenerating and
 replacing the Liquidsoap block once. The new block creates a 32-slot filter pool

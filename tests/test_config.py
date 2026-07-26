@@ -40,8 +40,19 @@ class ConfigTests(unittest.TestCase):
         names = [preset["name"] for preset in data["presets"]]
         self.assertEqual(len(names), len(set(names)))
         for preset in data["presets"]:
-            self.assertEqual(len(preset["gains"]), len(data["frequencies"]))
-            self.assertTrue(all(config["equalizer"]["gain_min"] <= gain <= config["equalizer"]["gain_max"] for gain in preset["gains"]))
+            if "bands" in preset:
+                self.assertTrue(config["equalizer"]["min_bands"] <= len(preset["bands"]) <= config["equalizer"]["max_bands"])
+                self.assertEqual(
+                    [band["frequency"] for band in preset["bands"]],
+                    sorted(band["frequency"] for band in preset["bands"]),
+                )
+                self.assertTrue(all(config["equalizer"]["gain_min"] <= band["gain"] <= config["equalizer"]["gain_max"] for band in preset["bands"]))
+                self.assertTrue(all(config["equalizer"]["q_min"] <= band["q"] <= config["equalizer"]["q_max"] for band in preset["bands"]))
+            else:
+                self.assertEqual(len(preset["gains"]), len(data["frequencies"]))
+                self.assertTrue(all(config["equalizer"]["gain_min"] <= gain <= config["equalizer"]["gain_max"] for gain in preset["gains"]))
+            if "output_gain" in preset:
+                self.assertTrue(config["output"]["min"] <= preset["output_gain"] <= config["output"]["max"])
 
     def test_generator_creates_runtime_filter_pool(self):
         config = json.loads((ROOT / "controls.json").read_text())
