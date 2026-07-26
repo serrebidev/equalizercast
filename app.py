@@ -11,6 +11,7 @@ import tempfile
 import threading
 import time
 import urllib.request
+import zlib
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
@@ -19,22 +20,14 @@ STATE_DIR = Path(os.environ.get("EQUALIZERCAST_STATE_DIR", "/var/lib/equalizerca
 STATE_FILE = STATE_DIR / "settings.json"
 KEY_FILE = Path(os.environ.get("LIQUIDSOAP_API_KEY_FILE", "/etc/equalizercast/liquidsoap-api-key"))
 CONTROLS = json.loads((BASE / "controls.json").read_text())
+PRESETS = json.loads((BASE / "presets.json").read_text())
+EQ = CONTROLS["equalizer"]
 LOCK = threading.RLock()
 TONE_TIMER: threading.Timer | None = None
 
 
 def control_spec() -> dict[str, dict]:
     specs = {CONTROLS["output"]["name"]: CONTROLS["output"]}
-    for band in CONTROLS["bands"]:
-        specs[f"eq.gain.{band['frequency']}"] = {
-            "name": f"eq.gain.{band['frequency']}",
-            "label": f"{band['frequency']} Hz",
-            "value": band["gain"],
-            "min": -6.0,
-            "max": 6.0,
-            "step": 0.05,
-            "unit": "dB",
-        }
     specs[CONTROLS["tone"]["frequency"]["name"]] = CONTROLS["tone"]["frequency"]
     specs[CONTROLS["tone"]["amplitude"]["name"]] = CONTROLS["tone"]["amplitude"]
     return specs
@@ -43,29 +36,71 @@ def control_spec() -> dict[str, dict]:
 SPECS = control_spec()
 DEFAULTS = {name: spec["value"] for name, spec in SPECS.items()}
 DEFAULTS[CONTROLS["tone"]["enabled"]["name"]] = False
+DEFAULT_BANDS = [band.copy() for band in CONTROLS["bands"]]
 
 
-def load_state() -> dict:
+def validate_bands(value) -> list[dict[str, float]]:
+    if not isinstance(value, list):
+        raise ValueError("Bands must be a list")
+    if not EQ["min_bands"] <= len(value) <= EQ["max_bands"]:
+        raise ValueError(f"Band count must be between {EQ['min_bands']} and {EQ['max_bands']}")
+    bands = []
+    for index, raw in enumerate(value):
+        if not isinstance(raw, dict):
+            raise ValueError(f"Band {index + 1} must be an object")
+        band = {}
+        for field, minimum, maximum in (
+            ("frequency", EQ["frequency_min"], EQ["frequency_max"]),
+            ("gain", EQ["gain_min"], EQ["gain_max"]),
+            ("q", EQ["q_min"], EQ["q_max"]),
+        ):
+            number = float(raw.get(field))
+            if not math.isfinite(number) or not minimum <= number <= maximum:
+                raise ValueError(f"Band {index + 1} {field} must be between {minimum} and {maximum}")
+            band[field] = number
+        bands.append(band)
+    frequencies = [band["frequency"] for band in bands]
+    if any(left >= right for left, right in zip(frequencies, frequencies[1:])):
+        raise ValueError("Band frequencies must be unique and in increasing order")
+    return bands
+
+
+def load_state() -> tuple[dict, list[dict[str, float]]]:
     try:
         saved = json.loads(STATE_FILE.read_text())
     except (FileNotFoundError, json.JSONDecodeError):
         saved = {}
+    if not isinstance(saved, dict):
+        saved = {}
+    saved_values = saved.get("values", {}) if saved.get("version") == 2 else saved
+    if not isinstance(saved_values, dict):
+        saved_values = {}
     state = DEFAULTS.copy()
-    for name, value in saved.items():
+    for name, value in saved_values.items():
         if name in state and name != "eq.tone.enabled":
             state[name] = value
     state["eq.tone.enabled"] = False
-    return state
+    try:
+        bands = validate_bands(saved["bands"]) if saved.get("version") == 2 else [
+            {
+                **band,
+                "gain": float(saved.get(f"eq.gain.{band['frequency']}", band["gain"])),
+            }
+            for band in DEFAULT_BANDS
+        ]
+    except (KeyError, TypeError, ValueError):
+        bands = [band.copy() for band in DEFAULT_BANDS]
+    return state, bands
 
 
-STATE = load_state()
+STATE, BANDS = load_state()
 
 
 def save_state() -> None:
     STATE_DIR.mkdir(mode=0o750, parents=True, exist_ok=True)
     persistent = {key: value for key, value in STATE.items() if key != "eq.tone.enabled"}
     with tempfile.NamedTemporaryFile("w", dir=STATE_DIR, delete=False) as stream:
-        json.dump(persistent, stream, indent=2, sort_keys=True)
+        json.dump({"version": 2, "values": persistent, "bands": BANDS}, stream, indent=2, sort_keys=True)
         stream.write("\n")
         temp_name = stream.name
     os.chmod(temp_name, 0o640)
@@ -117,6 +152,11 @@ def runtime_set(name: str, value) -> str:
     return result
 
 
+def band_revision(bands: list[dict[str, float]]) -> int:
+    encoded = json.dumps(bands, sort_keys=True, separators=(",", ":")).encode()
+    return zlib.crc32(encoded)
+
+
 def stop_tone() -> None:
     global TONE_TIMER
     with LOCK:
@@ -137,6 +177,17 @@ def start_tone_timer() -> None:
     TONE_TIMER.start()
 
 
+def apply_bands(bands: list[dict[str, float]]) -> None:
+    """Replace the live EQ curve without exposing an in-between filter sweep."""
+    runtime_set("eq.band.count", 0)
+    for index, band in enumerate(bands):
+        runtime_set(f"eq.band.{index}.frequency", band["frequency"])
+        runtime_set(f"eq.band.{index}.q", band["q"])
+        runtime_set(f"eq.band.{index}.gain", band["gain"])
+    runtime_set("eq.band.count", len(bands))
+    runtime_set("eq.band.revision", band_revision(bands))
+
+
 def apply_all() -> None:
     with LOCK:
         runtime_set("eq.tone.enabled", False)
@@ -144,6 +195,7 @@ def apply_all() -> None:
         for name, value in STATE.items():
             if name != "eq.tone.enabled":
                 runtime_set(name, value)
+        apply_bands(BANDS)
 
 
 def monitor_runtime() -> None:
@@ -152,7 +204,13 @@ def monitor_runtime() -> None:
             with LOCK:
                 current = liquidsoap("var.get eq.output.gain")
                 expected = float(STATE["eq.output.gain"])
-                if abs(float(current) - expected) > 0.0005:
+                band_count = liquidsoap("var.get eq.band.count")
+                revision = liquidsoap("var.get eq.band.revision")
+                if (
+                    abs(float(current) - expected) > 0.0005
+                    or int(float(band_count)) != len(BANDS)
+                    or int(float(revision)) != band_revision(BANDS)
+                ):
                     apply_all()
         except Exception:
             pass
@@ -183,7 +241,13 @@ class Handler(SimpleHTTPRequestHandler):
     def do_GET(self):
         if self.path == "/api/state":
             with LOCK:
-                payload = {"controls": CONTROLS, "values": STATE.copy(), "tone_seconds": 30}
+                payload = {
+                    "controls": CONTROLS,
+                    "values": STATE.copy(),
+                    "bands": [band.copy() for band in BANDS],
+                    "presets": PRESETS,
+                    "tone_seconds": 30,
+                }
             return self.json_response(200, payload)
         if self.path == "/health":
             return self.json_response(200, {"ok": True})
@@ -194,13 +258,17 @@ class Handler(SimpleHTTPRequestHandler):
             return self.json_response(403, {"error": "Missing request guard"})
         try:
             length = int(self.headers.get("Content-Length", "0"))
-            if length > 4096:
+            if not 0 <= length <= 32768:
                 raise ValueError("Request too large")
             data = json.loads(self.rfile.read(length) or b"{}")
+            if not isinstance(data, dict):
+                raise ValueError("Request body must be a JSON object")
             if self.path == "/api/set":
                 return self.handle_set(data)
             if self.path == "/api/reset":
                 return self.handle_reset()
+            if self.path == "/api/bands":
+                return self.handle_bands(data)
             if self.path == "/api/tone":
                 return self.handle_tone(data)
             return self.json_response(404, {"error": "Not found"})
@@ -211,6 +279,33 @@ class Handler(SimpleHTTPRequestHandler):
 
     def handle_set(self, data: dict):
         name = str(data.get("name", ""))
+        if name.startswith("eq.band.") and name.endswith(".gain"):
+            try:
+                index = int(name.split(".")[2])
+            except (IndexError, ValueError) as exc:
+                raise ValueError("Unknown control") from exc
+            value = float(data.get("value"))
+            if not math.isfinite(value) or not EQ["gain_min"] <= value <= EQ["gain_max"]:
+                raise ValueError(f"Value must be between {EQ['gain_min']} and {EQ['gain_max']}")
+            with LOCK:
+                if not 0 <= index < len(BANDS):
+                    raise ValueError("Unknown control")
+                previous = BANDS[index]["gain"]
+                candidate = [band.copy() for band in BANDS]
+                candidate[index]["gain"] = value
+                try:
+                    runtime_set(name, value)
+                    runtime_set("eq.band.revision", band_revision(candidate))
+                except Exception:
+                    try:
+                        runtime_set(name, previous)
+                        runtime_set("eq.band.revision", band_revision(BANDS))
+                    except Exception:
+                        pass
+                    raise
+                BANDS[index] = candidate[index]
+                save_state()
+            return self.json_response(200, {"ok": True, "name": name, "value": value})
         if name not in SPECS:
             raise ValueError("Unknown control")
         value = float(data.get("value"))
@@ -225,6 +320,23 @@ class Handler(SimpleHTTPRequestHandler):
             save_state()
         return self.json_response(200, {"ok": True, "name": name, "value": value})
 
+    def handle_bands(self, data: dict):
+        global BANDS
+        bands = validate_bands(data.get("bands"))
+        with LOCK:
+            previous = BANDS
+            try:
+                apply_bands(bands)
+            except Exception:
+                try:
+                    apply_bands(previous)
+                except Exception:
+                    pass
+                raise
+            BANDS = bands
+            save_state()
+        return self.json_response(200, {"ok": True, "bands": [band.copy() for band in BANDS]})
+
     def handle_tone(self, data: dict):
         enabled = data.get("enabled") is True
         with LOCK:
@@ -237,8 +349,10 @@ class Handler(SimpleHTTPRequestHandler):
         return self.json_response(200, {"ok": True, "enabled": enabled, "auto_stop_seconds": 30})
 
     def handle_reset(self):
+        global BANDS
         with LOCK:
             STATE.update(DEFAULTS)
+            BANDS = [band.copy() for band in DEFAULT_BANDS]
             STATE["eq.tone.enabled"] = False
             apply_all()
             save_state()
@@ -255,4 +369,3 @@ if __name__ == "__main__":
     host = os.environ.get("EQUALIZERCAST_HOST", "127.0.0.1")
     port = int(os.environ.get("EQUALIZERCAST_PORT", "8767"))
     ThreadingHTTPServer((host, port), Handler).serve_forever()
-

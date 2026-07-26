@@ -1,5 +1,17 @@
 {
   "output": {"name": "eq.output.gain", "label": "Output gain", "value": 0.301, "min": 0.05, "max": 1.0, "step": 0.001, "unit": "x"},
+  "equalizer": {
+    "min_bands": 1,
+    "max_bands": 32,
+    "frequency_min": 20.0,
+    "frequency_max": 20000.0,
+    "gain_min": -6.0,
+    "gain_max": 6.0,
+    "gain_step": 0.05,
+    "q_min": 0.1,
+    "q_max": 10.0,
+    "q_step": 0.05
+  },
   "bands": [
     {"frequency": 32, "gain": 0.45, "q": 0.85},
     {"frequency": 40, "gain": 0.85, "q": 0.95},
@@ -31,4 +43,3 @@
     "amplitude": {"name": "eq.tone.amplitude", "value": 0.1259, "min": 0.001, "max": 0.5012, "step": 0.001, "unit": "linear"}
   }
 }
-
