@@ -1,8 +1,9 @@
 # EqualizerCast
 
 EqualizerCast is a small, dependency-free web control panel for a Liquidsoap
-equalizer running in AzuraCast. Band and output changes reach the stream
-immediately and are persisted locally. It also includes a sweepable sine tone
+equalizer running in AzuraCast. Band count, frequency, Q, gain, and output
+changes reach the stream immediately and are persisted locally. It includes
+more than 40 built-in presets and a sweepable sine tone
 that overlays the music and automatically stops after 30 seconds.
 
 ## Safety and privacy
@@ -58,8 +59,23 @@ that overlays the music and automatically stops after 30 seconds.
 
 ## Configuration
 
-`controls.json` defines the band frequencies, Q values, ranges, and installed
-defaults. The app accepts these environment variables:
+`controls.json` defines the installed band curve and safe customization ranges.
+The web panel can use 1–32 bands, edit every center frequency and Q, and apply a
+preset either to the current layout or to the standard 10-band layout.
+`presets.json` contains the built-in preset curves and their research
+provenance. The curves were newly authored within the app's conservative ±6 dB
+range; the referenced Audacious/Winamp collection and AWA guide were used for
+established names and intended tonal profiles, not copied gain data.
+Presets may also contain a complete `bands` layout and an optional `output_gain`;
+these exact-layout presets restore band count, frequencies, Q, gains, and output
+instead of interpolating onto the current layout.
+
+Changing from an earlier EqualizerCast release requires regenerating and
+replacing the Liquidsoap block once. The new block creates a 32-slot filter pool
+whose active count, frequency, gain, and Q are runtime controls. After that,
+layout changes do not require another regeneration or a Liquidsoap restart.
+
+The app accepts these environment variables:
 
 | Variable | Default | Purpose |
 | --- | --- | --- |

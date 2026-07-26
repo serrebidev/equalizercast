@@ -8,7 +8,14 @@ section { background: #1a2030; border: 1px solid #34415e; border-radius: .7rem; 
 .control { border: 1px solid #43516f; border-radius: .5rem; padding: .75rem; }
 .control label { display: block; font-weight: 700; margin-bottom: .4rem; }
 .control input[type="range"] { width: 100%; min-height: 2.5rem; }
-.control input[type="number"], .tone-grid input[type="number"] { width: 8rem; font-size: 1rem; padding: .45rem; }
+.control input[type="number"], .tone-grid input[type="number"], .layout-tools input, select { width: 8rem; font-size: 1rem; padding: .45rem; }
+.band-settings { display: grid; grid-template-columns: 1fr 1fr; gap: .65rem; margin-top: .7rem; }
+.band-settings label { font-size: .9rem; font-weight: 400; }
+.band-settings input { box-sizing: border-box; width: 100% !important; }
+.preset-grid, .layout-tools { display: flex; flex-wrap: wrap; gap: .7rem; align-items: center; margin: .8rem 0 1rem; }
+.preset-grid select { min-width: 15rem; width: auto; }
+.preset-grid .wide { flex-basis: 100%; margin: 0; color: #c7d1e5; }
+.check { display: inline-flex; align-items: center; gap: .35rem; }
 .tone-grid { display: grid; grid-template-columns: minmax(10rem, 16rem) 1fr; gap: .75rem; align-items: center; }
 .tone-grid input[type="range"] { width: 100%; min-height: 2.5rem; }
 button { font: inherit; font-weight: 700; border: 0; border-radius: .5rem; padding: .75rem 1rem; background: #5aa9ff; color: #07101d; cursor: pointer; }
@@ -16,4 +23,3 @@ button { font: inherit; font-weight: 700; border: 0; border-radius: .5rem; paddi
 #status[data-error="true"] { color: #ff9999; }
 @media (max-width: 38rem) { .tone-grid { grid-template-columns: 1fr; } }
 @media (prefers-reduced-motion: reduce) { * { scroll-behavior: auto !important; } }
-

@@ -34,7 +34,20 @@
 
   <section aria-labelledby="eq-heading">
     <h2 id="eq-heading">Equalizer bands</h2>
-    <p>Each band ranges from −6 to +6 dB and updates while you move it.</p>
+    <p>Gain updates while you move it. Frequencies and Q can be edited, and the layout can contain 1–32 bands.</p>
+    <div class="preset-grid">
+      <label for="preset">Preset</label>
+      <select id="preset"></select>
+      <button id="apply-preset" type="button">Apply preset</button>
+      <label class="check"><input id="keep-layout" type="checkbox" checked> Keep my current frequencies and band count</label>
+      <p id="preset-description" class="wide"></p>
+    </div>
+    <div class="layout-tools">
+      <label for="band-count">Number of bands</label>
+      <input id="band-count" type="number" min="1" max="32" step="1">
+      <button id="set-band-count" type="button">Set band count</button>
+      <button id="save-layout" type="button">Apply frequency and Q changes</button>
+    </div>
     <div id="bands" class="bands"></div>
   </section>
 
@@ -43,4 +56,3 @@
 <script src="/app.js"></script>
 </body>
 </html>
-
