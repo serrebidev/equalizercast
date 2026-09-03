@@ -6,6 +6,8 @@ changes reach the stream immediately and are persisted locally. It includes
 more than 40 built-in presets and a sweepable sine tone
 that overlays the music and automatically stops after 30 seconds.
 
+**Questions, bugs, or release news?** Join the [SerrebiProjects Telegram group](https://t.me/SerrebiProjects), the fastest place to get help.
+
 ## Safety and privacy
 
 - The server binds to `127.0.0.1` by default. Put authentication in front of it
