@@ -160,19 +160,27 @@ def band_revision(bands: list[dict[str, float]]) -> int:
 def stop_tone() -> None:
     global TONE_TIMER
     with LOCK:
+        if TONE_TIMER:
+            TONE_TIMER.cancel()
+            TONE_TIMER = None
         STATE["eq.tone.enabled"] = False
         try:
             runtime_set("eq.tone.enabled", False)
         except Exception:
             pass
-        TONE_TIMER = None
 
 
 def start_tone_timer() -> None:
     global TONE_TIMER
     if TONE_TIMER:
         TONE_TIMER.cancel()
-    TONE_TIMER = threading.Timer(30.0, stop_tone)
+    def expire():
+        with LOCK:
+            if TONE_TIMER is timer:
+                stop_tone()
+
+    timer = threading.Timer(30.0, expire)
+    TONE_TIMER = timer
     TONE_TIMER.daemon = True
     TONE_TIMER.start()
 
