@@ -359,10 +359,25 @@ class Handler(SimpleHTTPRequestHandler):
     def handle_reset(self):
         global BANDS
         with LOCK:
+            previous_state = STATE.copy()
+            previous_bands = BANDS
             STATE.update(DEFAULTS)
             BANDS = [band.copy() for band in DEFAULT_BANDS]
             STATE["eq.tone.enabled"] = False
-            apply_all()
+            try:
+                apply_all()
+            except Exception:
+                # Like /api/set and /api/bands, a reset Liquidsoap refused
+                # changes nothing; otherwise the monitor would push the
+                # unsaved defaults on air while the UI reports a failure.
+                STATE.clear()
+                STATE.update(previous_state)
+                BANDS = previous_bands
+                try:
+                    apply_all()
+                except Exception:
+                    pass
+                raise
             save_state()
         return self.json_response(200, {"ok": True, "values": STATE.copy()})
 
